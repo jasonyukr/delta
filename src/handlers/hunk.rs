@@ -117,12 +117,14 @@ impl<'a> StateMachine<'a> {
                 // The first character here could be e.g. '\' from '\ No newline at end of file'. This
                 // is not a hunk line, but the parser does not have a more accurate state corresponding
                 // to this.
+                if self.line != "\\ No newline at end of file" { // HACK to suppress the "No newline ..."
                 self.painter.paint_buffered_minus_and_plus_lines();
                 self.painter.output_buffer.push_str(&expand_tabs(
                     self.raw_line.graphemes(true),
                     self.config.tab_width,
                 ));
                 self.painter.output_buffer.push('\n');
+                } // HACK to suppress the "No newline ..."
                 State::HunkZero(Unified, None)
             }
         };
