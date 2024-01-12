@@ -518,6 +518,33 @@ fn pad_panel_line_to_width(
         config,
     );
 
+    // Hack the fill-characters.
+    // Basically the fill-characters is space character(" ") for left panel or empty space
+    // for right panel. And this hack block mimics the behavior of "set fillchars=diff:/"
+    // configuration in nvim.
+    const HACK_FILLCHARS: bool = true;
+    if HACK_FILLCHARS {
+        if panel_line_is_empty && !line_index.is_some() { // check the mandatory condition for fill-characters display
+            match bg_fill_mode {
+                Some(BgFillMethod::TryAnsiSequence) => {
+                    Painter::right_fill_background_color(panel_line, fill_style)
+                }
+                Some(BgFillMethod::Spaces) if text_width >= panel_width => (),
+                Some(BgFillMethod::Spaces) | None => { // Spaces case is for left-panel. None case is for right-panel
+                    panel_line.push_str(&format!("\x1b[38;2;{};{};{}m", 0x30, 0x30, 0x30)); // apply hard coded dark-gray fg color
+                    panel_line.push_str(
+                        #[allow(clippy::unnecessary_to_owned)]
+                        &fill_style
+                            .paint("╱".repeat(panel_width - text_width))
+                            .to_string(),
+                    );
+                    panel_line.push_str("\x1b[0m");    // reset color
+                },
+            }
+            return; // return here to skip the original "match bg_fill_mode" block below 
+        }
+    }
+
     match bg_fill_mode {
         Some(BgFillMethod::TryAnsiSequence) => {
             Painter::right_fill_background_color(panel_line, fill_style)
