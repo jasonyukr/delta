@@ -96,6 +96,48 @@ mod tests {
     }
 
     #[test]
+    fn test_default_language_is_used_for_syntax_highlighting() {
+        // Note: default-language will be used for files with no extension, but also
+        // for files with an extension, but for which the language was not detected.
+        // Use color-only so that we can refer to the line numbers from the input diff.
+        let config = integration_test_utils::make_config_from_args(&[
+            "--color-only",
+            "--default-language",
+            "bash",
+        ]);
+        let output = integration_test_utils::run_delta(MODIFIED_BASH_AND_CSHARP_FILES, &config);
+        ansi_test_utils::assert_line_has_syntax_highlighted_substring(
+            &output,
+            12,
+            1,
+            "    rsync -avu --delete $src/ $dst",
+            "bash",
+            State::HunkZero(DiffType::Unified, None),
+            &config,
+        );
+    }
+
+    #[test]
+    fn test_default_language_is_not_used_when_other_language_is_detected() {
+        // Use color-only so that we can refer to the line numbers from the input diff.
+        let config = integration_test_utils::make_config_from_args(&[
+            "--color-only",
+            "--default-language",
+            "bash",
+        ]);
+        let output = integration_test_utils::run_delta(MODIFIED_BASH_AND_CSHARP_FILES, &config);
+        ansi_test_utils::assert_line_has_syntax_highlighted_substring(
+            &output,
+            19,
+            1,
+            "        static void Main(string[] args)",
+            "cs",
+            State::HunkZero(DiffType::Unified, None),
+            &config,
+        );
+    }
+
+    #[test]
     fn test_diff_unified_two_files() {
         let config =
             integration_test_utils::make_config_from_args(&["--file-modified-label", "comparing:"]);
@@ -154,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_certain_bugs_are_not_present() {
-        for input in vec![
+        for input in [
             DIFF_EXHIBITING_PARSE_FILE_NAME_BUG,
             DIFF_EXHIBITING_STATE_MACHINE_PARSER_BUG,
             DIFF_EXHIBITING_TRUNCATION_BUG,
@@ -168,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_delta_paints_diff_when_there_is_unrecognized_initial_content() {
-        for input in vec![
+        for input in [
             DIFF_WITH_UNRECOGNIZED_PRECEDING_MATERIAL_1,
             DIFF_WITH_UNRECOGNIZED_PRECEDING_MATERIAL_2,
         ] {
@@ -237,10 +279,37 @@ mod tests {
 
     #[test]
     fn test_binary_files_differ() {
-        let config = integration_test_utils::make_config_from_args(&[]);
+        let config =
+            integration_test_utils::make_config_from_args(&["--file-modified-label", "modified:"]);
         let output = integration_test_utils::run_delta(BINARY_FILES_DIFFER, &config);
         let output = strip_ansi_codes(&output);
-        assert!(output.contains("Binary files /dev/null and b/foo differ\n"));
+        assert!(output.contains("\nmodified: foo (binary file)\n"));
+    }
+
+    #[test]
+    fn test_binary_file_added() {
+        let config = integration_test_utils::make_config_from_args(&[]);
+        let output = integration_test_utils::run_delta(BINARY_FILE_ADDED, &config);
+        let output = strip_ansi_codes(&output);
+        assert!(output.contains("\nadded: foo (binary file)\n"));
+    }
+
+    #[test]
+    fn test_binary_file_removed() {
+        let config = integration_test_utils::make_config_from_args(&[]);
+        let output = integration_test_utils::run_delta(BINARY_FILE_REMOVED, &config);
+        let output = strip_ansi_codes(&output);
+        assert!(output.contains("\nremoved: foo (binary file)\n"));
+    }
+
+    #[test]
+    fn test_binary_files_differ_after_other() {
+        let config =
+            integration_test_utils::make_config_from_args(&["--file-modified-label", "modified:"]);
+        let output = integration_test_utils::run_delta(BINARY_FILES_DIFFER_AFTER_OTHER, &config);
+        let output = strip_ansi_codes(&output);
+        assert!(output.contains("\nrenamed: foo ⟶   bar\n"));
+        assert!(output.contains("\nmodified: qux (binary file)\n"));
     }
 
     #[test]
@@ -250,6 +319,32 @@ mod tests {
         let output = strip_ansi_codes(&output);
         assert!(output.contains("\n---\n"));
         assert!(output.contains("\nSubject: [PATCH] Init\n"));
+    }
+
+    #[test]
+    fn test_standalone_diff_files_are_identical() {
+        let diff = "Files foo and bar are identical\n";
+        let config = integration_test_utils::make_config_from_args(&[]);
+        let output = integration_test_utils::run_delta(diff, &config);
+        assert_eq!(strip_ansi_codes(&output), diff);
+    }
+
+    #[test]
+    fn test_standalone_diff_binary_files_differ() {
+        let diff = "Binary files foo and bar differ\n";
+        let config = integration_test_utils::make_config_from_args(&[]);
+        let output = integration_test_utils::run_delta(diff, &config);
+        assert_eq!(strip_ansi_codes(&output), diff);
+    }
+
+    #[test]
+    fn test_diff_no_index_binary_files_differ() {
+        let config = integration_test_utils::make_config_from_args(&[]);
+        let output = integration_test_utils::run_delta(DIFF_NO_INDEX_BINARY_FILES_DIFFER, &config);
+        assert_eq!(
+            strip_ansi_codes(&output),
+            "Binary files foo bar and sub dir/foo bar baz differ\n"
+        );
     }
 
     #[test]
@@ -578,7 +673,7 @@ commit 94907c0f136f46dc46ffae2dc92dca9af7eb7c2e
             "omit",
         ]);
         let output = integration_test_utils::run_delta(GIT_DIFF_SINGLE_HUNK, &config);
-        for (i, line) in vec![
+        for (i, line) in [
             "diff --git a/src/align.rs b/src/align.rs",
             "index 8e37a9e..6ce4863 100644",
             "--- a/src/align.rs",
@@ -626,7 +721,7 @@ index 8e37a9e..6ce4863 100644
             GIT_DIFF_SINGLE_HUNK_WITH_ANSI_ESCAPE_SEQUENCES,
             &config,
         );
-        for (i, line) in vec![
+        for (i, line) in [
             "diff --git a/src/align.rs b/src/align.rs",
             "index 8e37a9e..6ce4863 100644",
             "--- a/src/align.rs",
@@ -1073,6 +1168,21 @@ src/delta.rs:1: │
         );
         let output = strip_ansi_codes(&output);
         assert!(output.contains("commit 94907c0f136f46dc46ffae2dc92dca9af7eb7c2e"));
+    }
+
+    #[test]
+    fn test_hunk_header_omit_code_fragment() {
+        let config = integration_test_utils::make_config_from_args(&[
+            "--hunk-header-style",
+            "line-number omit-code-fragment",
+            "--hunk-header-decoration-style",
+            "none",
+        ]);
+        let output = strip_ansi_codes(&integration_test_utils::run_delta(
+            GIT_DIFF_SINGLE_HUNK,
+            &config,
+        ));
+        assert!(output.contains("\n71: \n"));
     }
 
     #[test]
@@ -1712,6 +1822,15 @@ src/align.rs:71: impl<'a> Alignment<'a> { │
         assert_eq!(output, input);
     }
 
+    #[test]
+    fn test_git_diff_binary_is_unchanged_under_color_only() {
+        let config = integration_test_utils::make_config_from_args(&["--color-only"]);
+        let input = BINARY_FILES_DIFFER_BETWEEN_OTHER;
+        let output = integration_test_utils::run_delta(input, &config);
+        let output = strip_ansi_codes(&output);
+        assert_eq!(output, input);
+    }
+
     // See https://github.com/dandavison/delta/issues/371#issuecomment-720173435
     #[test]
     fn test_keep_plus_minus_markers_under_inspect_raw_lines() {
@@ -2019,6 +2138,35 @@ index 0000000..84d55c5
 +file1 contents
 ";
 
+    const MODIFIED_BASH_AND_CSHARP_FILES: &str = "\
+diff --git a/a b/a
+index 8c4ae06..0a37de7 100644
+--- a/a
++++ b/a
+@@ -9,7 +9,7 @@ foobar()
+     dst=$(winpath $2)
+ 
+     # List the directory.
+-    ls -l $src
++    ls -la $src
+ 
+     echo $src '->' $dst
+     rsync -avu --delete $src/ $dst
+diff --git a/b.cs b/b.cs
+index 2e73468..8d8b89d 100644
+--- a/b.cs
++++ b/b.cs
+@@ -6,7 +6,7 @@ class Program
+     {
+         static void Main(string[] args)
+         {
+-            int message = 123;
++            int message = 456;
+ 
+             Console.WriteLine(message);
+         }
+";
+
     const RENAMED_FILE_INPUT: &str = "\
 commit 1281650789680f1009dfff2497d5ccfbe7b96526
 Author: Dan Davison <dandavison7@gmail.com>
@@ -2241,16 +2389,77 @@ index ba28bfd..0000000
 ";
 
     const BINARY_FILES_DIFFER: &str = "
-commit ad023698217b086f1bef934be62b4523c95f64d9 (HEAD -> master)
-Author: Dan Davison <dandavison7@gmail.com>
-Date:   Wed Feb 12 08:05:53 2020 -0600
+commit 7d58b736b09788d65392cef1bf3dcc647165f7e7 (HEAD -> main)
+Author: Sondeyy <nils.boettcher@posteo.de>
+Date:   Sat Aug 5 16:22:38 2023 +0200
 
-    .
+    modified bin file
+
+diff --git a/foo b/foo
+index c9bbb35..5fc172d 100644
+Binary files a/foo and b/foo differ
+";
+
+    const BINARY_FILE_ADDED: &str = "
+commit 7d58b736b09788d65392cef1bf3dcc647165f7e7 (HEAD -> main)
+Author: Sondeyy <nils.boettcher@posteo.de>
+Date:   Sat Aug 5 16:22:38 2023 +0200
+
+    added binary file
 
 diff --git a/foo b/foo
 new file mode 100644
-index 0000000..b572921
+index c9bbb35..5fc172d 100644
 Binary files /dev/null and b/foo differ
+";
+
+    const BINARY_FILE_REMOVED: &str = "
+commit 7d58b736b09788d65392cef1bf3dcc647165f7e7 (HEAD -> main)
+Author: Sondeyy <nils.boettcher@posteo.de>
+Date:   Sat Aug 5 16:22:38 2023 +0200
+
+    removed binary file
+
+diff --git a/foo b/foo
+deleted file mode 100644
+index c9bbb35..5fc172d 100644
+Binary files a/foo and /dev/null differ
+";
+
+    const BINARY_FILES_DIFFER_AFTER_OTHER: &str = "
+diff --git a/foo b/bar
+similarity index 100%
+rename from foo
+rename to bar
+diff --git a/qux b/qux
+index 00de669..d47cd84 100644
+Binary files a/qux and b/qux differ
+";
+
+    const BINARY_FILES_DIFFER_BETWEEN_OTHER: &str = "\
+diff --git a/foo b/foo
+index 7b57bd29ea8a..4d3b8c11a4a2 100644
+--- a/foo
++++ b/foo
+@@ -1 +1 @@
+-abc
++def
+diff --git a/qux b/qux
+index 00de669..d47cd84 100644
+Binary files a/qux and b/qux differ
+diff --git a/bar b/bar
+index 7b57bd29ea8a..4d3b8c11a4a2 100644
+--- a/bar
++++ b/bar
+@@ -1 +1 @@
+-123
++456
+";
+
+    const DIFF_NO_INDEX_BINARY_FILES_DIFFER: &str = "\
+diff --git foo bar sub dir/foo bar baz
+index 329fbf5..481817c 100644
+Binary files foo bar and sub dir/foo bar baz differ
 ";
 
     const GIT_DIFF_WITH_COPIED_FILE: &str = "

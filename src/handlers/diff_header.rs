@@ -357,7 +357,7 @@ fn parse_diff_header_line(line: &str, git_diff_name: bool) -> (String, FileEvent
 
 /// Given input like "diff --git a/src/my file.rs b/src/my file.rs"
 /// return Some("src/my file.rs")
-fn get_repeated_file_path_from_diff_line(line: &str) -> Option<String> {
+pub fn get_repeated_file_path_from_diff_line(line: &str) -> Option<String> {
     if let Some(line) = line.strip_prefix("diff --git ") {
         let line: Vec<&str> = line.graphemes(true).collect();
         let midpoint = line.len() / 2;
@@ -390,7 +390,7 @@ fn _parse_file_path(s: &str, git_diff_name: bool) -> String {
     // ---·a/a·b├──┤␊
     // +++·b/c·d├──┤␊
     let path = match s.strip_suffix('\t').unwrap_or(s) {
-        path if path == "/dev/null" => "/dev/null",
+        "/dev/null" => "/dev/null",
         path if git_diff_name && DIFF_PREFIXES.iter().any(|s| path.starts_with(s)) => &path[2..],
         path if git_diff_name => path,
         path => path.split('\t').next().unwrap_or(""),

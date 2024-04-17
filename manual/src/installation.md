@@ -17,7 +17,7 @@ Note that the package is often called `git-delta`, but the executable installed 
 
 <table>
   <tr>
-    <td><a href="https://archlinux.org/packages/community/x86_64/git-delta/">Arch Linux</a></td>
+    <td><a href="https://archlinux.org/packages/extra/x86_64/git-delta/">Arch Linux</a></td>
     <td><code>pacman -S git-delta</code></td>
   </tr>
   <tr>
@@ -53,7 +53,7 @@ Note that the package is often called `git-delta`, but the executable installed 
     <td><code>pkg_add delta</code></td>
   </tr>
   <tr>
-    <td><a href="https://software.opensuse.org/package/git-delta">openSUSE Tumbleweed</a></td>
+    <td><a href="https://software.opensuse.org/package/git-delta">openSUSE</a></td>
     <td><code>zypper install git-delta</code>
   </tr>
   <tr>
