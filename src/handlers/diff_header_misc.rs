@@ -1,4 +1,5 @@
 use crate::delta::{DiffType, Source, State, StateMachine};
+use crate::utils::path::relativize_path_maybe;
 
 impl<'a> StateMachine<'a> {
     #[inline]
@@ -23,14 +24,17 @@ impl<'a> StateMachine<'a> {
             // This can happen in output of standalone diff or git diff --no-index.
             if self.minus_file.is_empty() && self.plus_file.is_empty() {
                 self.emit_line_unchanged()?;
-                self.handled_diff_header_header_line_file_pair = self.current_file_pair.clone();
+                self.handled_diff_header_header_line_file_pair
+                    .clone_from(&self.current_file_pair);
                 return Ok(true);
             }
 
             if self.minus_file != "/dev/null" {
+                relativize_path_maybe(&mut self.minus_file, self.config);
                 self.minus_file.push_str(" (binary file)");
             }
             if self.plus_file != "/dev/null" {
+                relativize_path_maybe(&mut self.plus_file, self.config);
                 self.plus_file.push_str(" (binary file)");
             }
             return Ok(true);

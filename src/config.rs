@@ -31,6 +31,9 @@ use crate::wrapping::WrapConfig;
 
 pub const INLINE_SYMBOL_WIDTH_1: usize = 1;
 
+// Used if an invalid default-language was specified.
+pub const SYNTAX_FALLBACK_LANG: &str = "txt";
+
 #[cfg_attr(test, derive(Clone))]
 pub struct Config {
     pub available_terminal_width: usize,
@@ -49,7 +52,8 @@ pub struct Config {
     pub cwd_of_user_shell_process: Option<PathBuf>,
     pub cwd_relative_to_repo_root: Option<String>,
     pub decorations_width: cli::Width,
-    pub default_language: Option<String>,
+    pub default_language: String,
+    pub diff_args: String,
     pub diff_stat_align_width: usize,
     pub error_exit_code: i32,
     pub file_added_label: String,
@@ -98,6 +102,7 @@ pub struct Config {
     pub max_line_distance_for_naively_paired_lines: f64,
     pub max_line_distance: f64,
     pub max_line_length: usize,
+    pub max_syntax_length: usize,
     pub merge_conflict_begin_symbol: String,
     pub merge_conflict_ours_diff_header_style: Style,
     pub merge_conflict_theirs_diff_header_style: Style,
@@ -122,7 +127,6 @@ pub struct Config {
     pub show_themes: bool,
     pub side_by_side_data: side_by_side::SideBySideData,
     pub side_by_side: bool,
-    pub syntax_dummy_theme: SyntaxTheme,
     pub syntax_set: SyntaxSet,
     pub syntax_theme: Option<SyntaxTheme>,
     pub tab_cfg: utils::tabs::TabCfg,
@@ -212,6 +216,10 @@ impl From<cli::Opt> for Config {
 
         let blame_palette = make_blame_palette(opt.blame_palette, opt.computed.is_light_mode);
 
+        if blame_palette.is_empty() {
+            fatal("Option 'blame-palette' must not be empty.")
+        }
+
         let file_added_label = opt.file_added_label;
         let file_copied_label = opt.file_copied_label;
         let file_modified_label = opt.file_modified_label;
@@ -291,6 +299,7 @@ impl From<cli::Opt> for Config {
             cwd_relative_to_repo_root,
             decorations_width: opt.computed.decorations_width,
             default_language: opt.default_language,
+            diff_args: opt.diff_args,
             diff_stat_align_width: opt.diff_stat_align_width,
             error_exit_code: 2, // Use 2 for error because diff uses 0 and 1 for non-error.
             file_added_label,
@@ -386,6 +395,7 @@ impl From<cli::Opt> for Config {
             } else {
                 opt.max_line_length
             },
+            max_syntax_length: opt.max_syntax_length,
             merge_conflict_begin_symbol: opt.merge_conflict_begin_symbol,
             merge_conflict_ours_diff_header_style: styles["merge-conflict-ours-diff-header-style"],
             merge_conflict_theirs_diff_header_style: styles
@@ -414,7 +424,6 @@ impl From<cli::Opt> for Config {
             side_by_side: opt.side_by_side && !handlers::hunk::is_word_diff(),
             side_by_side_data,
             styles_map,
-            syntax_dummy_theme: SyntaxTheme::default(),
             syntax_set: opt.computed.syntax_set,
             syntax_theme: opt.computed.syntax_theme,
             tab_cfg: utils::tabs::TabCfg::new(opt.tab_width),

@@ -619,18 +619,20 @@ pub mod ansifill {
 pub mod tests {
     use crate::ansi::strip_ansi_codes;
     use crate::features::line_numbers::tests::*;
-    use crate::options::theme;
     use crate::tests::integration_test_utils::{make_config_from_args, run_delta, DeltaTest};
+    use insta::assert_snapshot;
 
     #[test]
-    fn test_two_minus_lines() {
-        DeltaTest::with_args(&["--side-by-side", "--width", "40"])
+    fn test_two_fitting_minus_lines() {
+        // rustfmt ignores the assert macro arguments, so do the setup outside
+        let result = DeltaTest::with_args(&["--side-by-side"])
             .with_input(TWO_MINUS_LINES_DIFF)
-            .expect_after_header(
-                r#"
-                │  1 │a = 1         │    │
-                │  2 │b = 23456     │    │"#,
-            );
+            .skip_header();
+        assert_snapshot!(result, @r###"
+        │  1 │a = 1           │    │
+        │  2 │b = 23456       │    │
+        "###
+        );
     }
 
     #[test]
@@ -670,7 +672,6 @@ pub mod tests {
 
     #[test]
     fn test_two_plus_lines_spaces_and_ansi() {
-        let _override = theme::test_utils::DetectLightModeOverride::new(false);
         DeltaTest::with_args(&[
             "--side-by-side",
             "--width",

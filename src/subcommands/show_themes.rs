@@ -36,22 +36,24 @@ pub fn show_themes(dark: bool, light: bool, computed_theme_is_light: bool) -> st
 
     let git_config = git_config::GitConfig::try_create(&env);
     let opt = cli::Opt::from_iter_and_git_config(
-        env.clone(),
+        &env,
         &["delta", "--navigate", "--show-themes"],
         git_config,
     );
-    let mut output_type =
-        OutputType::from_mode(&env, PagingMode::Always, None, &config::Config::from(opt)).unwrap();
+    let mut output_type = OutputType::from_mode(
+        &env,
+        PagingMode::Always,
+        None,
+        &config::Config::from(opt).into(),
+    )
+    .unwrap();
     let title_style = ansi_term::Style::new().bold();
     let writer = output_type.handle().unwrap();
 
     for theme in &themes {
         let git_config = git_config::GitConfig::try_create(&env);
-        let opt = cli::Opt::from_iter_and_git_config(
-            env.clone(),
-            &["delta", "--features", theme],
-            git_config,
-        );
+        let opt =
+            cli::Opt::from_iter_and_git_config(&env, &["delta", "--features", theme], git_config);
         let is_dark_theme = opt.dark;
         let is_light_theme = opt.light;
         let config = config::Config::from(opt);

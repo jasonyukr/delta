@@ -79,7 +79,7 @@ pub fn set_options(
     }
     opt.navigate = opt.navigate || opt.env.navigate.is_some();
     if opt.syntax_theme.is_none() {
-        opt.syntax_theme = opt.env.bat_theme.clone();
+        opt.syntax_theme.clone_from(&opt.env.bat_theme);
     }
 
     let option_names = cli::Opt::get_argument_and_option_names();
@@ -140,6 +140,7 @@ pub fn set_options(
             commit_regex,
             commit_style,
             default_language,
+            diff_args,
             diff_stat_align_width,
             file_added_label,
             file_copied_label,
@@ -174,6 +175,7 @@ pub fn set_options(
             map_styles,
             max_line_distance,
             max_line_length,
+            max_syntax_length,
             // Hack: minus-style must come before minus-*emph-style because the latter default
             // dynamically to the value of the former.
             merge_conflict_begin_symbol,
@@ -617,10 +619,20 @@ fn set_widths_and_isatty(opt: &mut cli::Opt) {
                 .unwrap_or_else(|err| fatal(format!("Invalid value for width: {err}")));
             (cli::Width::Fixed(width), true)
         }
-        None => (
-            cli::Width::Fixed(opt.computed.available_terminal_width),
-            true,
-        ),
+        None => {
+            #[cfg(test)]
+            {
+                // instead of passing `--width=..` to all tests, set it here:
+                (cli::Width::Fixed(tests::TERMINAL_WIDTH_IN_TESTS), true)
+            }
+            #[cfg(not(test))]
+            {
+                (
+                    cli::Width::Fixed(opt.computed.available_terminal_width),
+                    true,
+                )
+            }
+        }
     };
     opt.computed.decorations_width = decorations_width;
     opt.computed.background_color_extends_to_terminal_width =
@@ -632,7 +644,7 @@ fn set_true_color(opt: &mut cli::Opt) {
         // It's equal to its default, so the user might be using the deprecated
         // --24-bit-color option.
         if let Some(_24_bit_color) = opt._24_bit_color.as_ref() {
-            opt.true_color = _24_bit_color.clone();
+            opt.true_color.clone_from(_24_bit_color);
         }
     }
 
@@ -663,6 +675,8 @@ pub mod tests {
     use crate::cli;
     use crate::tests::integration_test_utils;
     use crate::utils::bat::output::PagingMode;
+
+    pub const TERMINAL_WIDTH_IN_TESTS: usize = 43;
 
     #[test]
     fn test_options_can_be_set_in_git_config() {
@@ -735,7 +749,7 @@ pub mod tests {
         assert_eq!(opt.commit_decoration_style, "black black");
         assert_eq!(opt.commit_style, "black black");
         assert!(!opt.dark);
-        assert_eq!(opt.default_language, Some("rs".to_owned()));
+        assert_eq!(opt.default_language, "rs".to_owned());
         // TODO: should set_options not be called on any feature flags?
         // assert_eq!(opt.diff_highlight, true);
         // assert_eq!(opt.diff_so_fancy, true);
